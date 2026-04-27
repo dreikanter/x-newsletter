@@ -92,30 +92,14 @@ prompt = <<~PROMPT
 PROMPT
 
 claude_start = Time.now
-claude_cmd = ["claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt]
-raw, err, status = nil
-Open3.popen3(*claude_cmd) do |stdin, stdout, stderr, wait_thr|
-  stdin.close
-  out_buf = +""
-  err_buf = +""
-  out_thread = Thread.new { out_buf << stdout.read }
-  err_thread = Thread.new { err_buf << stderr.read }
-  unless wait_thr.join(CLAUDE_TIMEOUT)
-    Process.kill("TERM", wait_thr.pid) rescue nil
-    sleep 5
-    Process.kill("KILL", wait_thr.pid) rescue nil
-    wait_thr.value
-    out_thread.join
-    err_thread.join
-    abort "Claude timed out after #{CLAUDE_TIMEOUT}s, killed."
-  end
-  out_thread.join
-  err_thread.join
-  raw = out_buf
-  err = err_buf
-  status = wait_thr.value
-end
+raw, err, status = Open3.capture3(
+  "gtimeout", "--kill-after=5s", CLAUDE_TIMEOUT.to_s,
+  "claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt
+)
 claude_elapsed = (Time.now - claude_start).round(1)
+if [124, 137].include?(status.exitstatus)
+  abort "Claude timed out after #{claude_elapsed}s, killed."
+end
 unless status.success?
   abort "Claude failed (exit #{status.exitstatus}) after #{claude_elapsed}s:\n#{raw}\n#{err}"
 end

@@ -8,6 +8,7 @@ Daily email digest of top AI, programming, and developer tooling posts from X/Tw
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - [Resend CLI](https://resend.com/docs/cli)
 - [fnox](https://github.com/jdx/fnox)
+- GNU coreutils (`brew install coreutils`) — for `gtimeout`
 
 ## Setup
 
