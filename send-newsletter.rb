@@ -16,7 +16,7 @@ puts Time.now.strftime("[%Y-%m-%d %H:%M:%S]")
 LOCK_FILE = "/tmp/x-newsletter.lock"
 RUN_LOCK_FILE = "/tmp/x-newsletter.run.lock"
 SCHEDULE_TOLERANCE = 60
-CLAUDE_TIMEOUT = 1800
+CLAUDE_TIMEOUT = 300
 
 # Prevent concurrent runs: held for the lifetime of this process, auto-released on exit.
 run_lock = File.open(RUN_LOCK_FILE, File::RDWR | File::CREAT, 0o644)
