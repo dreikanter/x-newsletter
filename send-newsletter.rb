@@ -94,7 +94,7 @@ PROMPT
 claude_start = Time.now
 raw, err, status = Open3.capture3(
   "gtimeout", "--kill-after=5s", CLAUDE_TIMEOUT.to_s,
-  "claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt
+  "claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch,XNewsletterCronMarker", "-p", prompt
 )
 claude_elapsed = (Time.now - claude_start).round(1)
 if [124, 137].include?(status.exitstatus)

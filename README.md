@@ -55,6 +55,16 @@ Two locks:
 
 The Claude subprocess is also bounded by a 30-minute timeout to keep a single hung run from stacking up cron instances.
 
+## Cleanup cron
+
+The Claude subprocess is invoked with a sentinel `XNewsletterCronMarker` entry in `--allowedTools`. The model never invokes it (it isn't a real tool), but it's visible in the process's argv, which lets a cleanup cron job kill any stragglers without false-matching unrelated `claude --print` invocations:
+
+```
+0 15 * * * pkill -TERM -f XNewsletterCronMarker; sleep 5; pkill -KILL -f XNewsletterCronMarker; true
+```
+
+Schedule it after the last regular run window (the example runs at 15:00, 15 minutes after the 14:45 cron tick).
+
 ## Testing
 
 `test.sh` removes the lock file and runs `run.sh`, simulating a fresh cron execution.
