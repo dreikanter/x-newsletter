@@ -26,6 +26,17 @@ fnox set X_NEWSLETTER_SUBJECT_PREFIX 'X Newsletter: Top AI & Dev Posts'
 
 `run.sh` reads secrets from fnox and passes them as env vars to `send-newsletter.rb`. The Ruby script can also run standalone with env vars set directly.
 
+## Editing the recipients list
+
+Recipients live in fnox as a comma-separated list. View, then overwrite:
+
+```sh
+fnox get X_NEWSLETTER_RECIPIENTS
+fnox set X_NEWSLETTER_RECIPIENTS 'alice@example.com,bob@example.com'
+```
+
+Whitespace around commas is stripped, so `'a@x.com, b@y.com'` works too.
+
 ## Scheduling
 
 Safe to run from cron at any frequency:
