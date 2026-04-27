@@ -14,7 +14,16 @@ require "tempfile"
 puts Time.now.strftime("[%Y-%m-%d %H:%M:%S]")
 
 LOCK_FILE = "/tmp/x-newsletter.lock"
+RUN_LOCK_FILE = "/tmp/x-newsletter.run.lock"
 SCHEDULE_TOLERANCE = 60
+CLAUDE_TIMEOUT = 1800
+
+# Prevent concurrent runs: held for the lifetime of this process, auto-released on exit.
+run_lock = File.open(RUN_LOCK_FILE, File::RDWR | File::CREAT, 0o644)
+unless run_lock.flock(File::LOCK_EX | File::LOCK_NB)
+  puts "Another instance is running, skipping."
+  exit 0
+end
 
 def should_run?
   return true unless File.exist?(LOCK_FILE)
@@ -83,7 +92,29 @@ prompt = <<~PROMPT
 PROMPT
 
 claude_start = Time.now
-raw, err, status = Open3.capture3("claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt)
+claude_cmd = ["claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt]
+raw, err, status = nil
+Open3.popen3(*claude_cmd) do |stdin, stdout, stderr, wait_thr|
+  stdin.close
+  out_buf = +""
+  err_buf = +""
+  out_thread = Thread.new { out_buf << stdout.read }
+  err_thread = Thread.new { err_buf << stderr.read }
+  unless wait_thr.join(CLAUDE_TIMEOUT)
+    Process.kill("TERM", wait_thr.pid) rescue nil
+    sleep 5
+    Process.kill("KILL", wait_thr.pid) rescue nil
+    wait_thr.value
+    out_thread.join
+    err_thread.join
+    abort "Claude timed out after #{CLAUDE_TIMEOUT}s, killed."
+  end
+  out_thread.join
+  err_thread.join
+  raw = out_buf
+  err = err_buf
+  status = wait_thr.value
+end
 claude_elapsed = (Time.now - claude_start).round(1)
 unless status.success?
   abort "Claude failed (exit #{status.exitstatus}) after #{claude_elapsed}s:\n#{raw}\n#{err}"

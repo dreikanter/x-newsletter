@@ -36,7 +36,12 @@ Safe to run from cron at any frequency:
 
 ## Lock mechanism
 
-The script writes `/tmp/x-newsletter.lock` with a timestamp after generating content, before sending. Subsequent runs within 24h exit early. Delete the lock file to force a re-run.
+Two locks:
+
+- `/tmp/x-newsletter.run.lock` — `flock`-based, prevents concurrent runs. Auto-released when the process exits.
+- `/tmp/x-newsletter.lock` — JSON file written after Claude returns, before sending. Subsequent runs within 24h exit early. Delete this file to force a re-run.
+
+The Claude subprocess is also bounded by a 30-minute timeout to keep a single hung run from stacking up cron instances.
 
 ## Testing
 
