@@ -14,7 +14,16 @@ require "tempfile"
 puts Time.now.strftime("[%Y-%m-%d %H:%M:%S]")
 
 LOCK_FILE = "/tmp/x-newsletter.lock"
+RUN_LOCK_FILE = "/tmp/x-newsletter.run.lock"
 SCHEDULE_TOLERANCE = 60
+CLAUDE_TIMEOUT = 1800
+
+# Prevent concurrent runs: held for the lifetime of this process, auto-released on exit.
+run_lock = File.open(RUN_LOCK_FILE, File::RDWR | File::CREAT, 0o644)
+unless run_lock.flock(File::LOCK_EX | File::LOCK_NB)
+  puts "Another instance is running, skipping."
+  exit 0
+end
 
 def should_run?
   return true unless File.exist?(LOCK_FILE)
@@ -83,8 +92,14 @@ prompt = <<~PROMPT
 PROMPT
 
 claude_start = Time.now
-raw, err, status = Open3.capture3("claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt)
+raw, err, status = Open3.capture3(
+  "gtimeout", "--kill-after=5s", CLAUDE_TIMEOUT.to_s,
+  "claude", "--print", "--model", "sonnet", "--allowedTools", "WebSearch,WebFetch", "-p", prompt
+)
 claude_elapsed = (Time.now - claude_start).round(1)
+if [124, 137].include?(status.exitstatus)
+  abort "Claude timed out after #{claude_elapsed}s, killed."
+end
 unless status.success?
   abort "Claude failed (exit #{status.exitstatus}) after #{claude_elapsed}s:\n#{raw}\n#{err}"
 end

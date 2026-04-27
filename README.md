@@ -8,6 +8,7 @@ Daily email digest of top AI, programming, and developer tooling posts from X/Tw
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - [Resend CLI](https://resend.com/docs/cli)
 - [fnox](https://github.com/jdx/fnox)
+- GNU coreutils (`brew install coreutils`) — for `gtimeout`
 
 ## Setup
 
@@ -26,6 +27,17 @@ fnox set X_NEWSLETTER_SUBJECT_PREFIX 'X Newsletter: Top AI & Dev Posts'
 
 `run.sh` reads secrets from fnox and passes them as env vars to `send-newsletter.rb`. The Ruby script can also run standalone with env vars set directly.
 
+## Editing the recipients list
+
+Recipients live in fnox as a comma-separated list. View, then overwrite:
+
+```sh
+fnox get X_NEWSLETTER_RECIPIENTS
+fnox set X_NEWSLETTER_RECIPIENTS 'alice@example.com,bob@example.com'
+```
+
+Whitespace around commas is stripped, so `'a@x.com, b@y.com'` works too.
+
 ## Scheduling
 
 Safe to run from cron at any frequency:
@@ -36,7 +48,12 @@ Safe to run from cron at any frequency:
 
 ## Lock mechanism
 
-The script writes `/tmp/x-newsletter.lock` with a timestamp after generating content, before sending. Subsequent runs within 24h exit early. Delete the lock file to force a re-run.
+Two locks:
+
+- `/tmp/x-newsletter.run.lock` — `flock`-based, prevents concurrent runs. Auto-released when the process exits.
+- `/tmp/x-newsletter.lock` — JSON file written after Claude returns, before sending. Subsequent runs within 24h exit early. Delete this file to force a re-run.
+
+The Claude subprocess is also bounded by a 30-minute timeout to keep a single hung run from stacking up cron instances.
 
 ## Testing
 
